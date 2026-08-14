@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>drive-cost モック v1</title>
+<style>
+  :root{
+    --bg:#f2f2f7; --card:#fff; --ink:#1c1c1e; --sub:#8e8e93;
+    --line:#e5e5ea; --accent:#007aff; --green:#34c759; --orange:#ff9500;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;background:#dcdce1;font-family:-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic UI",sans-serif;color:var(--ink)}
+  h1{font-size:18px;margin:0 0 4px}
+  .note{color:#555;font-size:13px;margin:0 0 20px}
+  .row{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+  .phone{width:375px;background:var(--bg);border-radius:34px;padding:14px 10px 18px;box-shadow:0 8px 28px rgba(0,0,0,.22);border:1px solid #c7c7cc}
+  .cap{text-align:center;font-size:12px;color:#444;margin:8px 0 0}
+  .nav{text-align:center;font-weight:600;font-size:17px;padding:6px 0 12px}
+  .seg{display:flex;background:#e3e3e8;border-radius:9px;padding:2px;margin:0 12px 14px}
+  .seg div{flex:1;text-align:center;font-size:14px;padding:7px 0;border-radius:7px;color:var(--sub)}
+  .seg div.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  .card{background:var(--card);border-radius:12px;margin:0 12px 14px;overflow:hidden}
+  .r{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--line);font-size:15px;gap:10px}
+  .r:last-child{border-bottom:none}
+  .r .lb{color:var(--sub);flex:0 0 76px;font-size:14px}
+  .val{flex:1;text-align:right;color:var(--ink)}
+  .val.ph{color:#c0c0c5}
+  .chev{color:#c7c7cc;font-size:15px}
+  .btn{color:var(--accent);font-size:14px;white-space:nowrap}
+  .num{width:82px;text-align:right;border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:15px;background:#fafafa}
+  .sw{width:44px;height:26px;border-radius:13px;background:#e3e3e8;position:relative;flex:0 0 44px}
+  .sw::after{content:"";position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .sw.on{background:var(--green)}
+  .sw.on::after{left:20px}
+  .res{background:var(--card);border-radius:12px;margin:0 12px}
+  .res .r{font-size:16px}
+  .res .lb2{color:var(--sub);font-size:14px}
+  .money{font-variant-numeric:tabular-nums;font-weight:600}
+  .tot{background:#f7f7fa}
+  .tot .money{font-size:24px;color:var(--accent)}
+  .badge{display:inline-block;font-size:11px;padding:2px 7px;border-radius:9px;background:#fff3e0;color:#b26a00;border:1px solid #ffd8a1;margin-right:6px;vertical-align:middle}
+  .badge.warn{background:#ffeaea;color:#c0392b;border-color:#ffc9c9}
+  .miss{color:#c0392b}
+  .hint{font-size:12px;color:var(--sub);margin:8px 16px 14px;line-height:1.5}
+  .sec{font-size:12px;color:var(--sub);margin:16px 22px 6px}
+  .add{color:var(--accent);font-size:15px}
+</style>
+</head>
+<body>
+<h1>drive-cost 画面モック v1</h1>
+<p class="note">実装前の見た目確認用。数字はサンプルです。左＝普通車で料金登録済み／中＝軽自動車に切替（概算バッジ・未登録の例）／右＝設定。</p>
+
+<div class="row">
+
+  <!-- ① 計算：普通車 -->
+  <div>
+  <div class="phone">
+    <div class="nav">ドライブ料金</div>
+    <div class="seg"><div class="on">計算</div><div>登録</div><div>設定</div></div>
+
+    <div class="card">
+      <div class="r"><span class="lb">車両</span><span class="val">ヴォクシー（普通車）</span><span class="chev">›</span></div>
+    </div>
+
+    <div class="card">
+      <div class="r"><span class="lb">出発地</span><span class="val">現在地（東京都千代田区）</span><span class="btn">📍</span></div>
+      <div class="r"><span class="lb">目的地</span><span class="val">仙台駅</span><span class="chev">›</span></div>
+    </div>
+
+    <div class="card">
+      <div class="r"><span class="lb">入口IC</span><span class="val">川口IC</span><span class="chev">›</span></div>
+      <div class="r"><span class="lb">出口IC</span><span class="val">仙台宮城IC</span><span class="chev">›</span></div>
+    </div>
+
+    <div class="card">
+      <div class="r"><span class="lb">燃費</span><span class="val"><input class="num" value="13.5"> km/L</span></div>
+      <div class="r"><span class="lb">単価</span><span class="val"><input class="num" value="175"> 円/L</span></div>
+      <div class="r"><span class="lb">往復</span><span class="val"></span><span class="sw"></span></div>
+    </div>
+
+    <div class="res">
+      <div class="r"><span class="lb2">走行距離</span><span class="val money">361.9 km</span><span class="btn">直す</span></div>
+      <div class="r"><span class="lb2">ガソリン代</span><span class="val money">4,691 円</span></div>
+      <div class="r"><span class="lb2">高速道路料金</span><span class="val money">8,140 円</span></div>
+      <div class="r tot"><span class="lb2">合計</span><span class="val money">12,831 円</span></div>
+    </div>
+    <p class="hint">高速料金は ETC・通常料金（割引なし）。<br>距離は経路計算値のため純正マップと数km差が出ます。</p>
+  </div>
+  <p class="cap">① 計算画面（普通車・登録済み）</p>
+  </div>
+
+  <!-- ② 計算：軽自動車 -->
+  <div>
+  <div class="phone">
+    <div class="nav">ドライブ料金</div>
+    <div class="seg"><div class="on">計算</div><div>登録</div><div>設定</div></div>
+
+    <div class="card">
+      <div class="r"><span class="lb">車両</span><span class="val">アルト（軽自動車）</span><span class="chev">›</span></div>
+    </div>
+
+    <div class="card">
+      <div class="r"><span class="lb">出発地</span><span class="val">自宅</span><span class="chev">›</span></div>
+      <div class="r"><span class="lb">目的地</span><span class="val">仙台駅</span><span class="chev">›</span></div>
+    </div>
+
+    <div class="card">
+      <div class="r"><span class="lb">入口IC</span><span class="val">川口IC</span><span class="chev">›</span></div>
+      <div class="r"><span class="lb">出口IC</span><span class="val">仙台宮城IC</span><span class="chev">›</span></div>
+    </div>
+
+    <div class="card">
+      <div class="r"><span class="lb">燃費</span><span class="val"><input class="num" value="22.0"> km/L</span></div>
+      <div class="r"><span class="lb">単価</span><span class="val"><input class="num" value="175"> 円/L</span></div>
+      <div class="r"><span class="lb">往復</span><span class="val"></span><span class="sw on"></span></div>
+    </div>
+
+    <div class="res">
+      <div class="r"><span class="lb2">走行距離</span><span class="val money">361.9 km</span><span class="btn">直す</span></div>
+      <div class="r"><span class="lb2">ガソリン代</span><span class="val money">5,756 円</span></div>
+      <div class="r"><span class="lb2">高速道路料金</span><span class="val"><span class="badge">概算</span><span class="money">13,020 円</span></span></div>
+      <div class="r tot"><span class="lb2">合計（往復）</span><span class="val money">18,776 円</span></div>
+    </div>
+    <p class="hint"><span class="badge">概算</span>＝普通車の登録額から車種比率(0.8)で換算した値です。正確にするには軽の料金を登録してください。</p>
+
+    <div class="sec">未登録のICペアの場合</div>
+    <div class="card">
+      <div class="r"><span class="lb2">高速道路料金</span><span class="val miss">未登録</span><span class="btn">ドラぷらで調べる ↗</span></div>
+      <div class="r"><span class="lb2">金額を入力</span><span class="val"><input class="num" value=""> 円</span><span class="btn">保存</span></div>
+    </div>
+  </div>
+  <p class="cap">② 軽自動車に切替（概算バッジ／未登録の導線）</p>
+  </div>
+
+  <!-- ③ 設定 -->
+  <div>
+  <div class="phone">
+    <div class="nav">ドライブ料金</div>
+    <div class="seg"><div>計算</div><div>登録</div><div class="on">設定</div></div>
+
+    <div class="sec">車両</div>
+    <div class="card">
+      <div class="r"><span class="val" style="text-align:left">ヴォクシー<br><span style="font-size:12px;color:var(--sub)">普通車・13.5 km/L</span></span><span class="chev">›</span></div>
+      <div class="r"><span class="val" style="text-align:left">アルト<br><span style="font-size:12px;color:var(--sub)">軽自動車・22.0 km/L</span></span><span class="chev">›</span></div>
+      <div class="r"><span class="add">＋ 車両を追加</span></div>
+    </div>
+
+    <div class="sec">ガソリン</div>
+    <div class="card">
+      <div class="r"><span class="lb">単価の既定値</span><span class="val"><input class="num" value="175"> 円/L</span></div>
+    </div>
+
+    <div class="sec">経路の距離計算</div>
+    <div class="card">
+      <div class="r"><span class="val" style="text-align:left">OSRM（キー不要・既定）</span><span style="color:var(--green)">✓</span></div>
+      <div class="r"><span class="val" style="text-align:left">OpenRouteService</span><span class="chev">›</span></div>
+    </div>
+    <p class="hint">通常は既定のままで動きます。距離が取れないときだけ切り替えてください。</p>
+
+    <div class="sec">登録済み料金</div>
+    <div class="card">
+      <div class="r"><span class="val" style="text-align:left">川口IC → 仙台宮城IC<br><span style="font-size:12px;color:var(--sub)">普通車 8,140円・2026-08-14 更新</span></span><span class="chev">›</span></div>
+      <div class="r"><span class="val" style="text-align:left">海老名IC → 御殿場IC<br><span style="font-size:12px;color:var(--sub)"><span class="badge warn">要更新</span>普通車 1,890円・2025-03-02 更新</span></span><span class="chev">›</span></div>
+    </div>
+
+    <div class="sec">データ</div>
+    <div class="card">
+      <div class="r"><span class="add">書き出し（機種変更用）</span></div>
+      <div class="r"><span class="add">読み込み</span></div>
+    </div>
+  </div>
+  <p class="cap">③ 設定画面</p>
+  </div>
+
+</div>
+</body>
+</html>

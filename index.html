@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f2f2f7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ドライブ料金">
+<title>ドライブ料金</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+
+<header class="nav">ドライブ料金</header>
+
+<nav class="seg" id="tabs">
+  <button type="button" data-tab="calc" class="on">計算</button>
+  <button type="button" data-tab="reg">登録</button>
+  <button type="button" data-tab="set">設定</button>
+</nav>
+
+<main>
+
+<!-- ===================== 計算 ===================== -->
+<section id="tab-calc">
+
+  <div class="card">
+    <div class="r"><span class="lb">車両</span><select id="vehicleSel" class="val sel"></select></div>
+  </div>
+
+  <div class="sec">出発地</div>
+  <div class="card">
+    <div class="r"><span class="lb">現在</span><span class="val" id="startLabel">未設定</span><button type="button" class="btn" id="btnHere">現在地</button></div>
+    <div class="r"><span class="lb">登録から</span><select id="startPlace" class="val sel"></select></div>
+    <div class="r"><input id="startQ" class="txt" placeholder="地名・住所で検索" enterkeyhint="search"><button type="button" class="btn" id="btnStartSearch">検索</button></div>
+    <div id="startResults" class="results" hidden></div>
+  </div>
+
+  <div class="sec">目的地</div>
+  <div class="card">
+    <div class="r"><span class="lb">現在</span><span class="val" id="destLabel">未設定</span></div>
+    <div class="r"><span class="lb">登録から</span><select id="destPlace" class="val sel"></select></div>
+    <div class="r"><input id="destQ" class="txt" placeholder="地名・住所で検索" enterkeyhint="search"><button type="button" class="btn" id="btnDestSearch">検索</button></div>
+    <div id="destResults" class="results" hidden></div>
+  </div>
+
+  <div class="sec">経由するインターチェンジ</div>
+  <div class="card">
+    <div class="r"><span class="lb">入口IC</span><select id="inIc" class="val sel"></select></div>
+    <div class="r"><span class="lb">出口IC</span><select id="outIc" class="val sel"></select></div>
+  </div>
+
+  <div class="card">
+    <div class="r"><span class="lb">燃費</span><span class="val"><input id="kmPerL" class="num" type="number" step="0.1" min="0.1" inputmode="decimal"> km/L</span></div>
+    <div class="r"><span class="lb">単価</span><span class="val"><input id="yenPerL" class="num" type="number" step="1" min="0" inputmode="numeric"> 円/L</span></div>
+    <div class="r"><span class="lb">往復</span><span class="val"></span><input type="checkbox" id="roundTrip" class="chk"></div>
+  </div>
+
+  <div class="card res">
+    <div class="r"><span class="lb2">走行距離</span><span class="val money" id="distLabel">-</span><button type="button" class="btn" id="btnEditDist">直す</button></div>
+    <div class="r" id="distEditRow" hidden><span class="lb2">距離</span><span class="val"><input id="distManual" class="num" type="number" step="0.1" min="0" inputmode="decimal"> km</span><button type="button" class="btn" id="btnAutoDist">自動に戻す</button></div>
+    <div class="r"><span class="lb2">ガソリン代</span><span class="val money" id="fuelLabel">-</span></div>
+    <div class="r"><span class="lb2">高速道路料金</span><span class="val" id="tollLabel">-</span></div>
+    <div class="r tot"><span class="lb2" id="totalLb">合計</span><span class="val money" id="totalLabel">-</span></div>
+  </div>
+
+  <div class="card" id="tollEntry" hidden>
+    <div class="r"><span class="lb2" id="tollEntryMsg">この区間の料金が未登録です</span><a class="btn" href="https://www.driveplaza.com/dp/SearchTop" target="_blank" rel="noopener">ドラぷらで調べる ↗</a></div>
+    <div class="r"><span class="lb2">金額</span><span class="val"><input id="tollInput" class="num" type="number" step="10" min="0" inputmode="numeric"> 円</span><button type="button" class="btn" id="btnSaveToll">保存</button></div>
+  </div>
+
+  <p class="hint">高速料金は ETC・通常料金（割引なし）です。<br>距離は経路計算値のため、純正マップと数km差が出ることがあります。</p>
+</section>
+
+<!-- ===================== 登録 ===================== -->
+<section id="tab-reg" hidden>
+
+  <div class="sec">登録地点</div>
+  <div class="card" id="placeList"></div>
+  <div class="card">
+    <div class="r"><span class="lb">名前</span><input id="placeName" class="txt" placeholder="自宅・実家 など"></div>
+    <div class="r"><span class="lb">緯度</span><input id="placeLat" class="txt" type="number" step="0.000001" inputmode="decimal"></div>
+    <div class="r"><span class="lb">経度</span><input id="placeLon" class="txt" type="number" step="0.000001" inputmode="decimal"></div>
+    <div class="r"><button type="button" class="btn" id="btnPlaceHere">現在地から埋める</button><button type="button" class="btn" id="btnPlaceSearch">名前で座標を検索</button><button type="button" class="btn strong" id="btnAddPlace">追加</button></div>
+    <div id="placeResults" class="results" hidden></div>
+  </div>
+
+  <div class="sec">登録IC</div>
+  <div class="card" id="icList"></div>
+  <div class="card">
+    <div class="r"><span class="lb">IC名</span><input id="icName" class="txt" placeholder="川口IC など"></div>
+    <div class="r"><span class="lb">緯度</span><input id="icLat" class="txt" type="number" step="0.000001" inputmode="decimal" placeholder="任意"></div>
+    <div class="r"><span class="lb">経度</span><input id="icLon" class="txt" type="number" step="0.000001" inputmode="decimal" placeholder="任意"></div>
+    <div class="r"><button type="button" class="btn" id="btnIcSearch">IC名で座標を検索</button><button type="button" class="btn strong" id="btnAddIc">ICを追加</button></div>
+    <div id="icResults" class="results" hidden></div>
+  </div>
+  <p class="hint">ICの座標は任意です。入れておくと距離の計算がその IC を通る経路になります。</p>
+
+  <div class="sec">登録済みの高速料金</div>
+  <div class="card" id="tollList"></div>
+  <div class="card">
+    <div class="r"><span class="lb">入口IC</span><select id="tollIn" class="val sel"></select></div>
+    <div class="r"><span class="lb">出口IC</span><select id="tollOut" class="val sel"></select></div>
+    <div class="r"><span class="lb">車種</span><select id="tollType" class="val sel"><option value="normal">普通車</option><option value="kei">軽自動車</option></select></div>
+    <div class="r"><span class="lb">金額</span><span class="val"><input id="tollYen" class="num" type="number" step="10" min="0" inputmode="numeric"> 円</span></div>
+    <div class="r"><a class="btn" href="https://www.driveplaza.com/dp/SearchTop" target="_blank" rel="noopener">ドラぷらで調べる ↗</a><button type="button" class="btn strong" id="btnAddToll">料金を登録</button></div>
+  </div>
+</section>
+
+<!-- ===================== 設定 ===================== -->
+<section id="tab-set" hidden>
+
+  <div class="sec">車両</div>
+  <div class="card" id="vehicleList"></div>
+  <div class="card">
+    <div class="r"><span class="lb">名前</span><input id="vName" class="txt" placeholder="ヴォクシー など"></div>
+    <div class="r"><span class="lb">車種</span><select id="vType" class="val sel"><option value="normal">普通車</option><option value="kei">軽自動車</option></select></div>
+    <div class="r"><span class="lb">燃費</span><span class="val"><input id="vKmPerL" class="num" type="number" step="0.1" min="0.1" inputmode="decimal"> km/L</span></div>
+    <div class="r"><button type="button" class="btn strong" id="btnAddVehicle">車両を追加</button></div>
+  </div>
+
+  <div class="sec">ガソリン</div>
+  <div class="card">
+    <div class="r"><span class="lb">単価の既定値</span><span class="val"><input id="defYenPerL" class="num" type="number" step="1" min="0" inputmode="numeric"> 円/L</span></div>
+  </div>
+
+  <div class="sec">経路の距離計算</div>
+  <div class="card">
+    <div class="r"><span class="lb">方式</span><select id="routerSel" class="val sel"><option value="osrm">OSRM（キー不要・既定）</option><option value="ors">OpenRouteService</option></select></div>
+    <div class="r" id="orsRow" hidden><span class="lb">APIキー</span><input id="orsKey" class="txt" placeholder="OpenRouteService のキー"></div>
+  </div>
+  <p class="hint">通常は既定のままで動きます。距離が取れないときだけ切り替えてください。</p>
+
+  <div class="sec">データ</div>
+  <div class="card">
+    <div class="r"><button type="button" class="btn" id="btnExport">書き出し（機種変更用）</button></div>
+    <div class="r"><textarea id="ioBox" class="txt area" placeholder="ここに書き出した内容が入ります。読み込むときは貼り付けて［読み込み］"></textarea></div>
+    <div class="r"><button type="button" class="btn strong" id="btnImport">読み込み</button></div>
+  </div>
+  <p class="hint">データはこの端末の中だけに保存されます。外部には送信されません。</p>
+</section>
+
+</main>
+
+<div id="toast" class="toast" hidden></div>
+
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>

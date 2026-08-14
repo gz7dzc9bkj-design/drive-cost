@@ -1,0 +1,11 @@
+{
+  "name": "drive-cost",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/logic.test.js",
+    "verify": "node tools/verify.js",
+    "serve": "node tools/serve.js"
+  }
+}
