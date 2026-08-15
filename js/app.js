@@ -503,5 +503,7 @@ function boot() {
 boot();
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js").catch(() => {});
+  // updateViaCache:"none" で sw.js 自体がHTTPキャッシュから読まれるのを防ぐ
+  // （これが無いと更新した sw.js が端末に届かない）。
+  navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).catch(() => {});
 }

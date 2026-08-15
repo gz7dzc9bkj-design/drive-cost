@@ -3,7 +3,7 @@
 // 方針: 自サイトの資材はネットワーク優先＋キャッシュ退避（更新が確実に届く）。
 //       外部API（国土地理院・OSRM）はキャッシュせず素通し。
 
-const VERSION = "v1";
+const VERSION = "v2";
 const CACHE = `drive-cost-${VERSION}`;
 
 const PRECACHE = [
@@ -39,8 +39,11 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET") return;
   if (new URL(req.url).origin !== self.location.origin) return; // 外部APIは素通し
 
+  // cache:"reload" でブラウザのHTTPキャッシュを迂回する。
+  // これが無いと GitHub Pages のキャッシュ指定により、更新を出しても
+  // 端末が古いファイルを使い続ける（実際に修正が数分間届かなかった）。
   e.respondWith(
-    fetch(req)
+    fetch(req, { cache: "reload" })
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(req, copy));
