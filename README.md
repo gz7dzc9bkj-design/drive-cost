@@ -3,6 +3,8 @@
 現在地から目的地までの **高速道路料金 ＋ ガソリン代** を出す個人用アプリ。
 サーバー不要の静的PWA。iPhoneのホーム画面に置いて使う。
 
+**公開URL: https://gz7dzc9bkj-design.github.io/drive-cost/**
+
 ---
 
 ## 使い方（3ステップ）
@@ -40,8 +42,12 @@ node tools/serve.js
 
 ### iPhoneで使う
 
-GitHub Pages に公開したURLを Safari で開き、共有ボタン →「ホーム画面に追加」。
+**https://gz7dzc9bkj-design.github.io/drive-cost/** を Safari で開き、
+共有ボタン →「ホーム画面に追加」。
 以後はアプリのアイコンから起動でき、圏外でも登録済みの料金で計算できる。
+
+`main` に push すると自動で再公開される。`.nojekyll` は消さないこと
+（GitHub Pages の既定の Jekyll 処理でビルドが落ちるため）。
 
 ---
 
