@@ -1,0 +1,28 @@
+# push のたびに検査（構文・凍結事項・ロジックテスト）を走らせる。
+# Pages の公開は設定画面の「Deploy from a branch: main / (root)」が行うため、
+# このワークフローに公開の権限は持たせない。
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+
+      - name: Node を用意
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 検査（構文・凍結事項・ロジックテスト）
+        run: node tools/verify.js
