@@ -1,0 +1,50 @@
+# GitHub Pages への自動公開。
+# 設定画面を手で触らなくても、この実行で Pages が有効化されて公開される
+# （configure-pages の enablement: true が API 経由で有効化する）。
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+
+      - name: Node を用意
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 検査（構文・凍結事項・ロジックテスト）
+        run: node tools/verify.js
+
+      - name: Pages を有効化して設定
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: 成果物をアップロード
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: 公開
+        id: deployment
+        uses: actions/deploy-pages@v4
