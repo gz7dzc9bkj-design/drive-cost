@@ -21,6 +21,9 @@ async function getJson(url, options = {}) {
     return await res.json();
   } catch (e) {
     if (e.name === "AbortError") throw new Error("通信がタイムアウトしました（10秒）");
+    // 圏外・機内モードは fetch が TypeError で落ちる。英語のまま出さない。
+    if (!navigator.onLine || e instanceof TypeError)
+      throw new Error("オフラインのため取得できません（距離は［直す］から手入力できます）");
     throw new Error(e.message || "通信に失敗しました");
   } finally {
     clearTimeout(timer);
