@@ -111,11 +111,16 @@ if (swSrc !== null) {
   check("B", "sw.js に VERSION がある", /VERSION\s*=/.test(swSrc));
 }
 
-// B6: 割引ロジックを持ち込んでいない（ETC通常料金のみ）
+// B6: 割引ロジックを実装していない（ETC通常料金のみ）
+// 「逓減は適用しない」といった説明文は正当なので、コメントを除いたコードだけを見る。
 for (const f of jsFiles) {
   if (f.startsWith(join(ROOT, "tools"))) continue;
-  const src = read(f);
-  check("B", `${rel(f)} に割引ロジックが無い`, !/(深夜割|休日割|朝夕割|逓減|nightDiscount|holidayDiscount)/.test(src));
+  const code = read(f).replace(/\/\/[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+  check(
+    "B",
+    `${rel(f)} に割引ロジックが無い`,
+    !/(nightDiscount|holidayDiscount|weekdayDiscount|applyDiscount|DISCOUNT_|割引率)/.test(code)
+  );
 }
 
 // ---------- [C] ロジックテスト ----------

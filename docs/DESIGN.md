@@ -76,6 +76,7 @@ DOM・localStorage・fetch・`Date.now()` を **使わない**（テスト再現
 | `tollKey(inIcId, outIcId, type)` | `` `${inIcId}>${outIcId}#${type}` `` |
 | `findToll(tolls, inIcId, outIcId, type)` | 完全一致 → `{yen, exact:true}` / 他車種のみ有 → 換算して `{yen, exact:false}` / 無 → `null` |
 | `convertToll(yen, fromType, toType)` | 軽=普通×0.8、普通=軽÷0.8。**10円単位に四捨五入**（NEXCO料金は10円単位） |
+| `estimateToll(highwayKm, type)` | `(150 + km×24.6) × 車種比率 × 1.1` を10円単位に切り上げ。**長距離逓減は適用しない**（多めに出す方針）。登録が無いときの目安 |
 | `totalCost(fuelYen, tollYen, roundTrip)` | `roundTrip` なら両方2倍して合計 |
 | `formatDistanceKm(meters)` | m → km、小数1桁の数値 |
 | `isTollStale(updatedAt, todayStr)` | 更新から1年以上経過なら `true` |

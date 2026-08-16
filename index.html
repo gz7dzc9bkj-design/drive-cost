@@ -68,8 +68,10 @@
   </div>
 
   <div class="card" id="tollEntry" hidden>
-    <div class="r"><span class="lb2" id="tollEntryMsg">この区間の料金が未登録です</span><a class="btn" href="https://www.driveplaza.com/dp/SearchTop" target="_blank" rel="noopener">ドラぷらで調べる ↗</a></div>
-    <div class="r"><span class="lb2">金額</span><span class="val"><input id="tollInput" class="num" type="number" step="10" min="0" inputmode="numeric"> 円</span><button type="button" class="btn" id="btnSaveToll">保存</button></div>
+    <div class="r"><span class="item" id="tollEntryMsg">この区間の料金が未登録です</span></div>
+    <div class="r"><span class="lb2">保存先</span><span class="val" id="tollEntryTarget">-</span></div>
+    <div class="r"><span class="lb2">正確な金額</span><span class="val"><input id="tollInput" class="num" type="number" step="10" min="0" inputmode="numeric"> 円</span><button type="button" class="btn strong" id="btnSaveToll">保存</button></div>
+    <div class="r"><a class="btn" href="https://www.driveplaza.com/dp/SearchTop" target="_blank" rel="noopener">ドラぷらで調べる ↗</a></div>
   </div>
 
   <p class="hint">高速料金は ETC・通常料金（割引なし）です。<br>距離は経路計算値のため、純正マップと数km差が出ることがあります。</p>

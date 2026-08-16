@@ -63,6 +63,34 @@ export function convertToll(yen, fromType, toType) {
   return Math.round(raw / TOLL_UNIT) * TOLL_UNIT;
 }
 
+/** NEXCO 対距離制の普通車キロ当たり料金（円/km・税抜）。 */
+export const RATE_PER_KM = 24.6;
+
+/** ターミナルチャージ（円・税抜）。1回の利用ごとに加算される固定額。 */
+export const TERMINAL_CHARGE = 150;
+
+/** 消費税率。 */
+const TAX = 1.1;
+
+/**
+ * 高速区間の距離から料金を概算する（登録済みの料金が無いときの目安）。
+ *
+ * 長距離逓減（100km超の値引き）は**適用しない**。ユーザーの指示が
+ * 「ETCの通常の一番高い値段」であり、不足するより多めに出るほうを選ぶため。
+ * その結果、長距離では実額より1割ほど高く出る。必ず「概算」と明示すること。
+ *
+ * @param {number} highwayKm 高速道路を走る距離（一般道を含めない）
+ * @param {string} type "normal" | "kei"
+ * @returns {number|null} 10円単位に切り上げた金額。入力が不正なら null
+ */
+export function estimateToll(highwayKm, type) {
+  const km = validateNumber(highwayKm, { min: 0 });
+  if (km === null || !VEHICLE_TYPES.includes(type)) return null;
+  const ratio = type === "kei" ? KEI_RATIO : 1;
+  const raw = (TERMINAL_CHARGE + km * RATE_PER_KM) * ratio * TAX;
+  return Math.ceil(raw / TOLL_UNIT - EPS) * TOLL_UNIT;
+}
+
 /**
  * 料金レコードの主キー。入口IC・出口IC・車種の3点セット。
  * @returns {string}

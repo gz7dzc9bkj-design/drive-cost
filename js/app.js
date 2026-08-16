@@ -3,6 +3,7 @@
 import {
   VEHICLE_LABEL,
   fuelCost,
+  estimateToll,
   findToll,
   totalCost,
   formatDistanceKm,
@@ -21,6 +22,7 @@ const state = {
   dest: null,
   distanceM: null, // 経路APIから得た自動距離
   manualKm: null, // 手動上書き（null なら自動を使う）
+  highwayM: null, // 入口IC〜出口IC の距離。料金を概算するのに使う
   lastVehicleId: null, // 燃費欄を車両に追従させるための記録
 };
 
@@ -202,33 +204,110 @@ function recalc() {
   const inIcId = $("inIc").value;
   const outIcId = $("outIc").value;
   const type = currentType();
-  const t = inIcId && outIcId ? findToll(db.getTolls(), inIcId, outIcId, type) : null;
-
   const tollEl = $("tollLabel");
+  const entry = $("tollEntry");
+  let tollYen = null;
+
   if (!inIcId || !outIcId) {
     tollEl.innerHTML = '<span class="lb2">ICを選択</span>';
-    $("tollEntry").hidden = true;
-  } else if (!t) {
-    tollEl.innerHTML = '<span class="miss">未登録</span>';
-    $("tollEntryMsg").textContent = "この区間の料金が未登録です";
-    $("tollEntry").hidden = false;
+    entry.hidden = true;
   } else {
-    const stale = isTollStale(t.updatedAt, db.todayStr()) ? '<span class="badge warn">要更新</span>' : "";
-    const approx = t.exact ? "" : '<span class="badge">概算</span>';
-    tollEl.innerHTML = `${stale}${approx}<span class="money">${formatYen(t.yen)} 円</span>`;
-    $("tollEntryMsg").textContent = t.exact
-      ? "登録し直す場合はこちら"
-      : `${VEHICLE_LABEL[t.fromType]}の登録額から換算した概算です。正確な額を登録できます`;
-    $("tollEntry").hidden = t.exact && !isTollStale(t.updatedAt, db.todayStr());
+    const t = findToll(db.getTolls(), inIcId, outIcId, type);
+    const stale = t ? isTollStale(t.updatedAt, db.todayStr()) : false;
+
+    if (t && t.exact) {
+      // 1. その車種で登録済み（一番正確）
+      tollYen = t.yen;
+      tollEl.innerHTML =
+        `${stale ? '<span class="badge warn">要更新</span>' : ""}` +
+        `<span class="money">${formatYen(t.yen)} 円</span>`;
+      $("tollEntryMsg").textContent = "金額を登録し直す場合はこちら";
+      entry.hidden = !stale;
+    } else if (t) {
+      // 2. 他の車種の登録額から換算
+      tollYen = t.yen;
+      tollEl.innerHTML = `<span class="badge">換算</span><span class="money">${formatYen(t.yen)} 円</span>`;
+      $("tollEntryMsg").textContent =
+        `${VEHICLE_LABEL[t.fromType]}の登録額から換算した値です。正確な額を登録できます`;
+      entry.hidden = false;
+    } else {
+      // 3. 未登録 → IC間の距離から概算する
+      const hwKm = state.highwayM === null ? null : formatDistanceKm(state.highwayM);
+      const est = hwKm === null ? null : estimateToll(hwKm, type);
+      if (est !== null) {
+        tollYen = est;
+        tollEl.innerHTML = `<span class="badge">概算</span><span class="money">${formatYen(est)} 円</span>`;
+        $("tollEntryMsg").textContent =
+          `IC間 ${hwKm.toFixed(1)}km からの概算です（割引を含めないため実額より高めに出ます）`;
+      } else {
+        tollEl.innerHTML = '<span class="miss">未登録</span>';
+        $("tollEntryMsg").textContent =
+          "料金が未登録です（登録タブでICに座標を入れると概算が出ます）";
+      }
+      entry.hidden = false;
+    }
+
+    // どの区間・どの車種として保存されるかを明示する
+    const icName = (id) => db.getIcs().find((x) => x.id === id)?.name ?? "?";
+    $("tollEntryTarget").textContent =
+      `${icName(inIcId)} → ${icName(outIcId)}（${VEHICLE_LABEL[type]}）`;
+
+    // 入力欄が空なら候補を入れておき、そのまま保存できるようにする
+    if (!$("tollInput").value && tollYen !== null) $("tollInput").value = tollYen;
   }
 
   $("totalLb").textContent = rt ? "合計（往復）" : "合計";
-  const total = fuel === null && !t ? null : totalCost(fuel ?? 0, t?.yen ?? 0, rt);
+  const total = fuel === null && tollYen === null ? null : totalCost(fuel ?? 0, tollYen ?? 0, rt);
   $("totalLabel").textContent = total === null ? "-" : `${formatYen(total)} 円`;
 }
 
+// IC間の距離は毎回同じなので、一度引いたら覚えておく
+const icDistanceCache = new Map();
+
+// 続けてICを変えると通信の応答順が入れ替わり、古い結果が新しい結果を
+// 上書きすることがある（実測で概算が壊れた）。通し番号で古い応答を捨てる。
+let highwaySeq = 0;
+
+/** 入口IC〜出口IC の距離（＝高速を走る距離）を求める。座標が無ければ null。 */
+async function updateHighwayDistance() {
+  const seq = ++highwaySeq;
+  const ics = db.getIcs();
+  const inId = $("inIc").value;
+  const outId = $("outIc").value;
+  const a = ics.find((x) => x.id === inId);
+  const b = ics.find((x) => x.id === outId);
+  const ok = (i) => i && Number.isFinite(i.lat) && Number.isFinite(i.lon);
+
+  // 入口と出口が同じ／座標が無い区間は概算しない
+  if (!ok(a) || !ok(b) || inId === outId) {
+    state.highwayM = null;
+    recalc();
+    return;
+  }
+
+  const key = `${a.id}>${b.id}`;
+  if (icDistanceCache.has(key)) {
+    state.highwayM = icDistanceCache.get(key);
+    recalc();
+    return;
+  }
+  let m = null;
+  try {
+    m = await routeDistance([a, b], db.getSettings());
+    icDistanceCache.set(key, m);
+  } catch {
+    m = null; // 概算が出ないだけで、登録済みの料金には影響しない
+  }
+  if (seq !== highwaySeq) return; // 選択が変わった後の古い応答は捨てる
+  state.highwayM = m;
+  recalc();
+}
+
+let distanceSeq = 0;
+
 async function autoDistance() {
   if (!state.start || !state.dest) return;
+  const seq = ++distanceSeq;
   const ics = db.getIcs();
   const byId = (id) => ics.find((x) => x.id === id);
   const via = [byId($("inIc").value), byId($("outIc").value)].filter(
@@ -237,12 +316,16 @@ async function autoDistance() {
   const points = [state.start, ...via, state.dest];
 
   $("distLabel").textContent = "計算中…";
+  let m = null;
+  let error = null;
   try {
-    state.distanceM = await routeDistance(points, db.getSettings());
+    m = await routeDistance(points, db.getSettings());
   } catch (e) {
-    state.distanceM = null;
-    toast(`距離を計算できませんでした：${e.message}`, true);
+    error = e;
   }
+  if (seq !== distanceSeq) return; // 条件が変わった後の古い応答は捨てる
+  state.distanceM = m;
+  if (error) toast(`距離を計算できませんでした：${error.message}`, true);
   recalc();
 }
 
@@ -293,6 +376,7 @@ function setDest(p) {
 $("vehicleSel").addEventListener("change", () => {
   db.setSettings({ activeVehicleId: $("vehicleSel").value || null });
   syncFuelField();
+  $("tollInput").value = ""; // 車種が変われば料金の候補も変わる
   recalc();
 });
 
@@ -334,7 +418,9 @@ for (const [input, btn] of [["startQ", "btnStartSearch"], ["destQ", "btnDestSear
 
 for (const id of ["inIc", "outIc"]) {
   $(id).addEventListener("change", () => {
+    $("tollInput").value = ""; // 別の区間になったので候補を入れ直す
     if (state.manualKm === null) autoDistance();
+    updateHighwayDistance();
     recalc();
   });
 }

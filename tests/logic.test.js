@@ -4,6 +4,7 @@ import {
   VEHICLE_TYPES,
   fuelCost,
   convertToll,
+  estimateToll,
   tollKey,
   findToll,
   totalCost,
@@ -83,6 +84,32 @@ test("convertToll: 未知の車種は null", () => {
 
 test("convertToll: 0円は0円", () => {
   assert.equal(convertToll(0, "normal", "kei"), 0);
+});
+
+// ---------- 距離からの概算 ----------
+test("estimateToll: 普通車（150 + 100×24.6）×1.1 = 2871 -> 2880", () => {
+  assert.equal(estimateToll(100, "normal"), 2880);
+});
+
+test("estimateToll: 軽自動車は普通車の0.8倍", () => {
+  // (150 + 100*24.6) * 0.8 * 1.1 = 2296.8 -> 2300
+  assert.equal(estimateToll(100, "kei"), 2300);
+});
+
+test("estimateToll: 距離0でもターミナルチャージ分は出る", () => {
+  // 150 * 1.1 = 165 -> 170
+  assert.equal(estimateToll(0, "normal"), 170);
+});
+
+test("estimateToll: 長距離逓減は適用しないので実額より高めに出る", () => {
+  // 340km: (150 + 340*24.6) * 1.1 = 9365.4 -> 9370（実額 8,140円より高い）
+  assert.equal(estimateToll(340, "normal"), 9370);
+});
+
+test("estimateToll: 不正な入力は null", () => {
+  assert.equal(estimateToll(-1, "normal"), null);
+  assert.equal(estimateToll(100, "large"), null);
+  assert.equal(estimateToll("x", "normal"), null);
 });
 
 // ---------- 料金の検索 ----------
