@@ -209,18 +209,23 @@ async function routeDistanceOrs(pts, key) {
  */
 export function currentPosition() {
   return new Promise((resolve, reject) => {
+    const fail = (message, kind) => reject(Object.assign(new Error(message), { kind }));
+
     if (!navigator.geolocation) {
-      reject(new Error("この端末では現在地を取得できません"));
+      fail("この端末では現在地を取得できません", "unsupported");
+      return;
+    }
+    // HTTP では iOS/Chrome とも位置情報を拒否する。原因が分かるよう区別する。
+    if (!window.isSecureContext) {
+      fail("安全な接続（HTTPS）でないため現在地を取得できません", "insecure");
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
       (err) => {
-        const msg =
-          err.code === 1
-            ? "位置情報の利用が許可されていません（設定から許可してください）"
-            : "現在地を取得できませんでした";
-        reject(new Error(msg));
+        if (err.code === 1) fail("位置情報の利用が許可されていません", "denied");
+        else if (err.code === 3) fail("現在地の取得に時間がかかっています", "timeout");
+        else fail("現在地を取得できませんでした", "unavailable");
       },
       { enableHighAccuracy: false, timeout: TIMEOUT_MS, maximumAge: 60000 }
     );

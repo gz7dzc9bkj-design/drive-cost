@@ -403,15 +403,57 @@ $("vehicleSel").addEventListener("change", () => {
   recalc();
 });
 
+/** 位置情報が使えないときの案内。トーストは消えてしまうので画面に残す。 */
+const GEO_HELP = {
+  denied: {
+    title: "位置情報が許可されていません",
+    body:
+      "<b>iPhoneでの許可のしかた</b><ol>" +
+      "<li>「設定」→「プライバシーとセキュリティ」→「位置情報サービス」を<b>オン</b></li>" +
+      "<li>同じ画面を下にたどり「<b>Safari Webサイト</b>」→「このAppの使用中のみ許可」</li>" +
+      "<li>このアプリを開き直して、もう一度［現在地］を押す</li></ol>" +
+      "ホーム画面に追加したアプリの場合は、初回に出る確認で「<b>許可</b>」を選んでください。" +
+      "一度「許可しない」を選ぶと以後は聞かれないため、上の手順が必要です。",
+  },
+  insecure: {
+    title: "安全な接続ではないため取得できません",
+    body: "<code>https://</code> で始まるURLから開いてください。",
+  },
+  timeout: {
+    title: "現在地の取得に時間がかかっています",
+    body: "電波の届く場所でもう一度［現在地］を押してください。屋内や地下では取得できないことがあります。",
+  },
+  unavailable: {
+    title: "現在地を取得できませんでした",
+    body: "電波の届く場所でもう一度お試しください。",
+  },
+  unsupported: {
+    title: "この端末では現在地を取得できません",
+    body: "「登録から」または「地名・住所で検索」で出発地を指定してください。",
+  },
+};
+
+function showGeoHelp(kind) {
+  const h = GEO_HELP[kind] ?? GEO_HELP.unavailable;
+  $("geoHelpTitle").textContent = h.title;
+  $("geoHelpBody").innerHTML = h.body;
+  $("geoHelp").hidden = false;
+}
+
+$("btnGeoHelpClose").addEventListener("click", () => ($("geoHelp").hidden = true));
+
 $("btnHere").addEventListener("click", async () => {
+  const previous = $("startLabel").textContent;
+  $("geoHelp").hidden = true;
   $("startLabel").textContent = "取得中…";
   try {
     const pos = await currentPosition();
     const label = await reverseLabel(pos.lat, pos.lon);
     setStart({ name: label ? `現在地（${label}）` : "現在地", lat: pos.lat, lon: pos.lon });
   } catch (e) {
-    $("startLabel").textContent = "未設定";
+    $("startLabel").textContent = previous; // 失敗しても前の出発地を消さない
     toast(e.message, true);
+    showGeoHelp(e.kind);
   }
 });
 

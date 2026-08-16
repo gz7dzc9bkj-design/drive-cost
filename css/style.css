@@ -62,6 +62,11 @@ main{max-width:520px;margin:0 auto}
 .item small{display:block;font-size:12px;color:var(--sub);margin-top:2px;white-space:normal}
 .hint{font-size:12px;color:var(--sub);margin:6px 22px 16px;line-height:1.6}
 
+.help{border:1px solid #ffd8a1;background:#fffdf7}
+.help .item{font-size:13px;line-height:1.7;white-space:normal}
+.help ol{margin:6px 0 0;padding-left:1.2em}
+.help li{margin-bottom:4px}
+
 .toast{
   position:fixed;left:50%;bottom:28px;transform:translateX(-50%);
   background:rgba(28,28,30,.94);color:#fff;font-size:14px;padding:10px 18px;border-radius:20px;
