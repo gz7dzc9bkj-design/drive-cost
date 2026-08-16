@@ -13,7 +13,13 @@ import {
   validateVehicle,
 } from "./logic.js";
 import * as db from "./storage.js";
-import { searchPlace, routeDistance, currentPosition, reverseLabel } from "./api.js";
+import {
+  searchPlace,
+  searchInterchange,
+  routeDistance,
+  currentPosition,
+  reverseLabel,
+} from "./api.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -337,12 +343,12 @@ async function autoDistance() {
 }
 
 // ---------------- 地点の検索 ----------------
-async function runSearch(query, container, onPick) {
+async function runSearch(query, container, onPick, searcher = searchPlace) {
   container.hidden = false;
   container.innerHTML = '<div class="empty">検索中…</div>';
   let results = [];
   try {
-    results = await searchPlace(query);
+    results = await searcher(query);
   } catch (e) {
     container.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
     return;
@@ -520,10 +526,15 @@ for (const [inputId, btnId, selectId, boxId] of [
   ["outIcQ", "btnOutIcSearch", "outIc", "outIcResults"],
 ]) {
   $(btnId).addEventListener("click", () =>
-    runSearch($(inputId).value, $(boxId), (r) => {
-      $(inputId).value = "";
-      pickIc(selectId, r);
-    })
+    runSearch(
+      $(inputId).value,
+      $(boxId),
+      (r) => {
+        $(inputId).value = "";
+        pickIc(selectId, r);
+      },
+      searchInterchange
+    )
   );
   $(inputId).addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
@@ -606,10 +617,16 @@ $("btnAddPlace").addEventListener("click", () => {
 });
 
 $("btnIcSearch").addEventListener("click", () =>
-  runSearch($("icName").value, $("icResults"), (r) => {
-    $("icLat").value = r.lat.toFixed(6);
-    $("icLon").value = r.lon.toFixed(6);
-  })
+  runSearch(
+    $("icName").value,
+    $("icResults"),
+    (r) => {
+      $("icName").value = r.name;
+      $("icLat").value = r.lat.toFixed(6);
+      $("icLon").value = r.lon.toFixed(6);
+    },
+    searchInterchange
+  )
 );
 $("btnAddIc").addEventListener("click", () => {
   const name = $("icName").value.trim();

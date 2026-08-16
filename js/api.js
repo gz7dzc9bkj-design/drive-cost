@@ -13,14 +13,16 @@ const ORS = "https://api.openrouteservice.org/v2/directions/driving-car";
 export const DRIVEPLAZA_URL = "https://www.driveplaza.com/dp/SearchTop";
 
 async function getJson(url, options = {}) {
+  const { timeoutMs = TIMEOUT_MS, ...init } = options;
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { ...options, signal: ctrl.signal });
+    const res = await fetch(url, { ...init, signal: ctrl.signal });
     if (!res.ok) throw new Error(`通信エラー (HTTP ${res.status})`);
     return await res.json();
   } catch (e) {
-    if (e.name === "AbortError") throw new Error("通信がタイムアウトしました（10秒）");
+    if (e.name === "AbortError")
+      throw new Error(`通信がタイムアウトしました（${Math.round(timeoutMs / 1000)}秒）`);
     // 圏外・機内モードは fetch が TypeError で落ちる。英語のまま出さない。
     if (!navigator.onLine || e instanceof TypeError)
       throw new Error("オフラインのため取得できません（距離は［直す］から手入力できます）");
@@ -154,6 +156,83 @@ async function searchGsi(query) {
       lat: Number(f.geometry.coordinates[1]),
     }))
     .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+}
+
+// ---------------- インターチェンジ専用の検索 ----------------
+// 一般の地名検索では「八王子」と打っても八王子市・八王子駅しか出ず、
+// 実在のICが出てこない。OpenStreetMap のIC情報（highway=motorway_junction）を
+// Overpass API から直接引く。
+
+const IC_DATA_URL = "./data/interchanges.json";
+
+/** 全角英数を半角にする。OSM のIC名は「八王子西ＩＣ」のように全角。 */
+const toHalfWidth = (s) =>
+  String(s ?? "").replace(/[Ａ-Ｚａ-ｚ０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+
+/** 「八王子西IC」「八王子インターチェンジ」→「八王子西」「八王子」 */
+function interchangeBaseName(query) {
+  const q = toHalfWidth(query).trim();
+  const base = q.replace(/\s*(IC|JCT|SIC|インターチェンジ|インター|ジャンクション)\s*$/iu, "").trim();
+  return base || q;
+}
+
+let icTable = null; // 一度読んだら使い回す
+
+/** 同梱のIC一覧を読み込む（初回のみ。以後は端末内で完結する）。 */
+async function loadInterchangeTable() {
+  if (icTable) return icTable;
+  const data = await getJson(IC_DATA_URL, { timeoutMs: 15000 });
+  icTable = (data?.items ?? []).map(([name, lat, lon]) => ({ name, lat, lon }));
+  return icTable;
+}
+
+/**
+ * IC名で検索する。「八王子」と打てば 八王子IC・八王子西IC・八王子JCT が出る。
+ *
+ * 公開Overpassは検索のたびに叩くと504を返すほど重かったため、
+ * 全国のIC一覧をアプリに同梱し、絞り込みは端末内で行う（即座に出る・オフライン可）。
+ * データは tools/build-ic-data.js で作り直せる。
+ * @returns {Promise<Array<{name:string, lat:number, lon:number}>>}
+ */
+export async function searchInterchange(q) {
+  const base = interchangeBaseName(q);
+  if (!base) return [];
+
+  let hits = [];
+  try {
+    const table = await loadInterchangeTable();
+    hits = table.filter((ic) => ic.name.includes(base));
+  } catch {
+    /* 同梱データが読めないときは地名検索で代替する */
+  }
+  // 同梱データに無い新設ICなどは地名検索で補う（IC/JCTを含む名前だけ採用）
+  if (!hits.length) {
+    const alt = await searchPlace(q);
+    hits = alt
+      .map((p) => ({ ...p, name: toHalfWidth(p.name) }))
+      .filter((p) => /IC|JCT|インター/u.test(p.name));
+  }
+  return rankInterchanges(hits, base);
+}
+
+/** 同名ノードの重複を消し、IC → JCT → その他 の順に並べる。 */
+function rankInterchanges(items, base) {
+  const seen = new Set();
+  const kindRank = (name) => (/IC$|IC[^A-Za-z]/.test(name) ? 0 : /JCT/.test(name) ? 1 : 2);
+  return items
+    .filter((it) => {
+      if (seen.has(it.name)) return false;
+      seen.add(it.name);
+      return true;
+    })
+    .sort(
+      (a, b) =>
+        kindRank(a.name) - kindRank(b.name) ||
+        (a.name.startsWith(base) ? 0 : 1) - (b.name.startsWith(base) ? 0 : 1) ||
+        a.name.length - b.name.length
+    )
+    .slice(0, 15)
+    .map(({ name, lat, lon }) => ({ name, lat, lon }));
 }
 
 /**

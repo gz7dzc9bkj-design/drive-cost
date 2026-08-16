@@ -103,6 +103,7 @@ if (swSrc !== null) {
         p === "manifest.webmanifest" ||
         p.startsWith("css/") ||
         p.startsWith("js/") ||
+        p.startsWith("data/") ||
         p.startsWith("icons/")
     )
     .map((p) => "./" + p);

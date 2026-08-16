@@ -3,13 +3,14 @@
 // 方針: 自サイトの資材はネットワーク優先＋キャッシュ退避（更新が確実に届く）。
 //       外部API（国土地理院・OSRM）はキャッシュせず素通し。
 
-const VERSION = "v2";
+const VERSION = "v3";
 const CACHE = `drive-cost-${VERSION}`;
 
 const PRECACHE = [
   "./index.html",
   "./manifest.webmanifest",
   "./css/style.css",
+  "./data/interchanges.json",
   "./js/app.js",
   "./js/api.js",
   "./js/logic.js",

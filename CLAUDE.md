@@ -48,6 +48,9 @@
 
 - **PowerShell 5.1**: `&&` / `||` は使えない → `A; if ($?) { B }`。
   `Set-Content` は ANSI 既定 → `-Encoding utf8` を明示
+- **`Invoke-WebRequest` で日本語JSONを保存しない**。UTF-8 を Latin-1 として解釈し
+  文字化けしたまま保存される（IC名が全部壊れた実例あり）。データ取得は Node の `fetch` で行う
+- **Overpass API は User-Agent が無いと 406** を返す。`node tools/build-ic-data.js` 参照
 - **ブラウザ検証**: `screenshot` はこの環境でタイムアウトする。
   `read_page` / `javascript_tool` / `get_page_text` で検証する
 - **index.html が激しくキャッシュされる**。「直したのに変わらない」ときは

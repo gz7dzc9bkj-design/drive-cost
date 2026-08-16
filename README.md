@@ -81,6 +81,10 @@ node tools/verify.js
 
 アイコンを作り直す場合: `node tools/make-icons.js`
 
+IC一覧を最新にする場合（新しいICが開通したとき）: `node tools/build-ic-data.js`
+→ `data/interchanges.json` を作り直す。1〜2分かかる。**PowerShellで取得しないこと**
+（UTF-8が壊れてIC名が全滅する）。
+
 ---
 
 ## 動作確認の実績（2026-08-15）
