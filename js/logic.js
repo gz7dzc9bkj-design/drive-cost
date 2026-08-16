@@ -14,6 +14,9 @@ export const KEI_RATIO = 0.8;
 /** 高速料金の最小単位（円）。 */
 const TOLL_UNIT = 10;
 
+/** ガソリン代の表示単位（円）。1円の位は切り上げて丸める。 */
+const FUEL_UNIT = 10;
+
 /** 浮動小数点の誤差で 1 円ずれるのを防ぐための微小値。 */
 const EPS = 1e-9;
 
@@ -32,7 +35,8 @@ export function validateNumber(v, range = {}) {
 }
 
 /**
- * ガソリン代（円）。円未満は切り捨て。
+ * ガソリン代（円）。**10円単位に切り上げる**（1円の位を出さない）。
+ * 例: 4,680.9円 → 4,690円
  * @returns {number|null} 入力が不正なら null
  */
 export function fuelCost(distanceKm, kmPerL, yenPerL) {
@@ -41,7 +45,8 @@ export function fuelCost(distanceKm, kmPerL, yenPerL) {
   const p = validateNumber(yenPerL, { min: 0 });
   if (d === null || e === null || p === null) return null;
   if (e <= 0) return null;
-  return Math.floor((d / e) * p + EPS);
+  const yen = Math.ceil(((d / e) * p) / FUEL_UNIT - EPS) * FUEL_UNIT;
+  return yen === 0 ? 0 : yen; // 距離0のとき -0 になるのを正規化する
 }
 
 /**

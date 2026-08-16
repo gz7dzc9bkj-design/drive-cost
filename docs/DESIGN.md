@@ -72,7 +72,7 @@ DOM・localStorage・fetch・`Date.now()` を **使わない**（テスト再現
 
 | 関数 | 仕様 |
 |---|---|
-| `fuelCost(distanceKm, kmPerL, yenPerL)` | `Math.floor(distanceKm / kmPerL * yenPerL)`。整数円。kmPerL≤0 なら `null` |
+| `fuelCost(distanceKm, kmPerL, yenPerL)` | `distanceKm / kmPerL * yenPerL` を **10円単位に切り上げ**（1円の位を出さない。2026-08-15 ユーザー要望）。kmPerL≤0 なら `null` |
 | `tollKey(inIcId, outIcId, type)` | `` `${inIcId}>${outIcId}#${type}` `` |
 | `findToll(tolls, inIcId, outIcId, type)` | 完全一致 → `{yen, exact:true}` / 他車種のみ有 → 換算して `{yen, exact:false}` / 無 → `null` |
 | `convertToll(yen, fromType, toType)` | 軽=普通×0.8、普通=軽÷0.8。**10円単位に四捨五入**（NEXCO料金は10円単位） |
