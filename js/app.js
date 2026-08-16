@@ -319,12 +319,10 @@ let distanceSeq = 0;
 async function autoDistance() {
   if (!state.start || !state.dest) return;
   const seq = ++distanceSeq;
-  const ics = db.getIcs();
-  const byId = (id) => ics.find((x) => x.id === id);
-  const via = [byId($("inIc").value), byId($("outIc").value)].filter(
-    (i) => i && Number.isFinite(i.lat) && Number.isFinite(i.lon)
-  );
-  const points = [state.start, ...via, state.dest];
+  // ICを経由地に入れてはいけない。ICの座標はランプ上の一点なので、そこを必ず通る
+  // 経路にすると寄り道が生じ、実測で 48.9km の道のりが 66.5km に膨らんだ。
+  // ICは高速料金の計算にだけ使う（updateHighwayDistance）。
+  const points = [state.start, state.dest];
 
   $("distLabel").textContent = "計算中…";
   let m = null;
@@ -490,8 +488,7 @@ for (const [input, btn] of [["startQ", "btnStartSearch"], ["destQ", "btnDestSear
 function onIcChanged() {
   $("tollInput").value = ""; // 別の区間になったので候補を入れ直す
   saveTrip();
-  if (state.manualKm === null) autoDistance();
-  updateHighwayDistance();
+  updateHighwayDistance(); // ICは料金の計算にだけ使う（走行距離には影響しない）
   recalc();
 }
 

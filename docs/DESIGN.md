@@ -96,7 +96,7 @@ DOM・localStorage・fetch・`Date.now()` を **使わない**（テスト再現
 |---|---|---|
 | `searchInterchange(q)` | **同梱の `data/interchanges.json`（全国3,357件）を端末内で絞り込む**。「八王子」→ 八王子西IC / 八王子JCT / 八王子。0.05秒以下・オフライン可。当初は Overpass API を都度呼んだが 504 が頻発し15〜24秒かかったため中止した。データは `node tools/build-ic-data.js` で再生成（Overpass から国境で絞って取得） |
 | `searchPlace(q)` | 主 `https://nominatim.openstreetmap.org/search`／予備 `https://msearch.gsi.go.jp/address-search/AddressSearch` | どちらもキー不要・CORS `*` 確認済み。**国土地理院は住所専用で「東京駅」を「東」と解釈する**ため主に使わない。Nominatim を先に引き 0 件のときだけ国土地理院へ。呼び出し間隔は1秒以上あける（利用規約）。`display_name` は「施設名（都道府県市区町村）」に短縮して表示 |
-| `routeDistance(points)` | `https://router.project-osrm.org/route/v1/driving/{lon,lat};…?overview=false` | 経由IC座標があれば出発地と目的地の間に挟む。返り値 `routes[0].distance`(m) |
+| `routeDistance(points)` | `https://router.project-osrm.org/route/v1/driving/{lon,lat};…?overview=false` | 返り値 `routes[0].distance`(m)。**走行距離は出発地→目的地の2点だけで計算する。ICを経由地に入れてはいけない**（ICの座標はランプ上の一点なので寄り道が生じ、実測で 48.9km→66.5km に膨らんだ。2026-08-16 修正）。ICは料金の概算にだけ使う |
 | `routeDistanceORS(points, key)` | OpenRouteService | OSRM 不調時のみ。設定でキーを入れると切替 |
 | `currentPosition()` | `navigator.geolocation` | HTTPS 必須（GitHub Pages はHTTPS ✓） |
 
