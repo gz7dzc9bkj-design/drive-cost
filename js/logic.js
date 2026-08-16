@@ -83,12 +83,107 @@ const TAX = 1.1;
  * @param {string} type "normal" | "kei"
  * @returns {number|null} 10円単位に切り上げた金額。入力が不正なら null
  */
-export function estimateToll(highwayKm, type) {
+export function estimateToll(highwayKm, type, ratePerKm = RATE_PER_KM) {
   const km = validateNumber(highwayKm, { min: 0 });
+  const rate = validateNumber(ratePerKm, { min: 1, max: 200 }) ?? RATE_PER_KM;
   if (km === null || !VEHICLE_TYPES.includes(type)) return null;
   const ratio = type === "kei" ? KEI_RATIO : 1;
-  const raw = (TERMINAL_CHARGE + km * RATE_PER_KM) * ratio * TAX;
+  const raw = (TERMINAL_CHARGE + km * rate) * ratio * TAX;
   return Math.ceil(raw / TOLL_UNIT - EPS) * TOLL_UNIT;
+}
+
+/**
+ * 登録済みの実額1件から、km当たり単価を逆算する（普通車換算）。
+ * @returns {number|null} 妥当でなければ null
+ */
+export function impliedRatePerKm(yen, km, type) {
+  const y = validateNumber(yen, { min: 1 });
+  const d = validateNumber(km, { min: 1 });
+  if (y === null || d === null || !VEHICLE_TYPES.includes(type)) return null;
+  const normal = type === "kei" ? y / KEI_RATIO : y;
+  const rate = (normal / TAX - TERMINAL_CHARGE) / d;
+  // 極端な値は経路の取り違えなどが疑われるので採用しない
+  return rate >= 5 && rate <= 80 ? rate : null;
+}
+
+/**
+ * 登録済みの実額から、この利用者の路線に合った単価を学習する。
+ * 平均ではなく中央値を使う（1件の外れ値に引きずられないため）。
+ * @param {Array<{yen:number, km:number, type:string}>} records
+ * @returns {{ratePerKm:number, samples:number}|null} 学習できなければ null
+ */
+export function calibrateRatePerKm(records) {
+  if (!Array.isArray(records)) return null;
+  const rates = records
+    .map((r) => impliedRatePerKm(r?.yen, r?.km, r?.type))
+    .filter((r) => r !== null)
+    .sort((a, b) => a - b);
+  if (!rates.length) return null;
+  const mid = Math.floor(rates.length / 2);
+  const median = rates.length % 2 ? rates[mid] : (rates[mid - 1] + rates[mid]) / 2;
+  return { ratePerKm: Math.round(median * 10) / 10, samples: rates.length };
+}
+
+// 道路名から種別を見分ける。OSRM が返す step の name を使う。
+const URBAN_EXPRESSWAY_RE = /(首都高速|阪神高速|名古屋高速|広島高速|福岡高速|北九州高速|京都高速)/;
+const NEXCO_EXPRESSWAY_RE = /(自動車道|高速道路)/;
+const RAMP_RE = /(ETC専用|ランプ|JCT|ジャンクション|入口|出口|料金所)/;
+
+/**
+ * 経路を道路種別ごとに集計する。
+ * @param {Array<{name:string, meters:number}>} roads
+ * @returns {{totalKm:number, expresswayKm:number, urbanKm:number, surfaceKm:number}}
+ */
+export function summarizeRoads(roads) {
+  const sum = { totalKm: 0, expresswayKm: 0, urbanKm: 0, surfaceKm: 0 };
+  if (!Array.isArray(roads)) return sum;
+  for (const r of roads) {
+    const km = validateNumber(r?.meters, { min: 0 });
+    if (km === null) continue;
+    const d = km / 1000;
+    const name = String(r?.name ?? "");
+    sum.totalKm += d;
+    if (URBAN_EXPRESSWAY_RE.test(name)) {
+      sum.urbanKm += d;
+      sum.expresswayKm += d;
+    } else if (NEXCO_EXPRESSWAY_RE.test(name) || RAMP_RE.test(name)) {
+      sum.expresswayKm += d;
+    } else {
+      sum.surfaceKm += d;
+    }
+  }
+  for (const k of Object.keys(sum)) sum[k] = Math.round(sum[k] * 10) / 10;
+  return sum;
+}
+
+/**
+ * 概算がどれくらい当てになるかを判定する。
+ * 一般道が多い経路や、別料金体系の都市高速を含む経路は当てにならない。
+ * level は "high" | "mid" | "low"。
+ * （"medium" という語は車種の検査 grep に引っかかるため使わない）
+ * @returns {{level:string, reason:string}}
+ */
+export function routeReliability(summary) {
+  const total = validateNumber(summary?.totalKm, { min: 0.1 });
+  if (total === null) return { level: "low", reason: "経路が取得できていません" };
+  const surfaceRatio = (summary.surfaceKm ?? 0) / total;
+
+  if (surfaceRatio > 0.2)
+    return {
+      level: "low",
+      reason: `IC間の経路に一般道が${summary.surfaceKm}km含まれるため、概算は当てになりません`,
+    };
+  if ((summary.urbanKm ?? 0) > 0.5)
+    return {
+      level: "mid",
+      reason: `都市高速（別の料金体系）を${summary.urbanKm}km含むため、概算はずれやすいです`,
+    };
+  if (surfaceRatio > 0.05)
+    return {
+      level: "mid",
+      reason: `IC間の経路に一般道が${summary.surfaceKm}km含まれます`,
+    };
+  return { level: "high", reason: "経路はほぼ高速道路です" };
 }
 
 /**

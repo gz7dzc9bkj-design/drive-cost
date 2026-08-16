@@ -5,6 +5,10 @@ import {
   fuelCost,
   convertToll,
   estimateToll,
+  impliedRatePerKm,
+  calibrateRatePerKm,
+  summarizeRoads,
+  routeReliability,
   tollKey,
   findToll,
   totalCost,
@@ -112,6 +116,77 @@ test("estimateToll: 不正な入力は null", () => {
   assert.equal(estimateToll(-1, "normal"), null);
   assert.equal(estimateToll(100, "large"), null);
   assert.equal(estimateToll("x", "normal"), null);
+});
+
+// ---------- 単価の学習 ----------
+test("impliedRatePerKm: 実額から単価を逆算する", () => {
+  // 1610円 / 58.6km 普通車 -> (1610/1.1 - 150)/58.6 = 22.4円/km
+  const r = impliedRatePerKm(1610, 58.6, "normal");
+  assert.ok(r > 22.3 && r < 22.5, `実際: ${r}`);
+});
+
+test("impliedRatePerKm: 軽自動車は普通車に換算してから逆算", () => {
+  const kei = impliedRatePerKm(1290, 58.6, "kei");
+  const normal = impliedRatePerKm(1610, 58.6, "normal");
+  assert.ok(Math.abs(kei - normal) < 0.5, `軽:${kei} 普通:${normal}`);
+});
+
+test("impliedRatePerKm: 現実的でない値は採用しない", () => {
+  assert.equal(impliedRatePerKm(100000, 1, "normal"), null); // 高すぎる
+  assert.equal(impliedRatePerKm(200, 100, "normal"), null); // 安すぎる
+  assert.equal(impliedRatePerKm(1610, 0, "normal"), null);
+});
+
+test("calibrateRatePerKm: 中央値を返す", () => {
+  const r = calibrateRatePerKm([
+    { yen: 1610, km: 58.6, type: "normal" },
+    { yen: 2000, km: 60, type: "normal" },
+    { yen: 1000, km: 40, type: "normal" },
+  ]);
+  assert.equal(r.samples, 3);
+  assert.ok(r.ratePerKm > 20 && r.ratePerKm < 32, `実際: ${r.ratePerKm}`);
+});
+
+test("calibrateRatePerKm: 使える実績が無ければ null", () => {
+  assert.equal(calibrateRatePerKm([]), null);
+  assert.equal(calibrateRatePerKm([{ yen: 1610, type: "normal" }]), null);
+  assert.equal(calibrateRatePerKm(null), null);
+});
+
+test("estimateToll: 学習した単価を使える", () => {
+  // (150 + 100*22.4) * 1.1 = 2629 -> 2630
+  assert.equal(estimateToll(100, "normal", 22.4), 2630);
+  // 単価が不正なら既定値に戻る
+  assert.equal(estimateToll(100, "normal", 0), estimateToll(100, "normal"));
+});
+
+// ---------- 経路の信頼度 ----------
+test("summarizeRoads: 高速と一般道を分けて集計する", () => {
+  const s = summarizeRoads([
+    { name: "中央自動車道", meters: 24600 },
+    { name: "甲州街道", meters: 8700 },
+    { name: "首都高速4号新宿線", meters: 5000 },
+    { name: "宝町入口", meters: 300 },
+  ]);
+  assert.equal(s.totalKm, 38.6);
+  assert.equal(s.surfaceKm, 8.7);
+  assert.equal(s.urbanKm, 5);
+  assert.equal(s.expresswayKm, 29.9);
+});
+
+test("routeReliability: 一般道が2割を超えたら低い", () => {
+  const r = routeReliability({ totalKm: 58.6, expresswayKm: 36.6, urbanKm: 0, surfaceKm: 22 });
+  assert.equal(r.level, "low");
+});
+
+test("routeReliability: 都市高速を含むと中くらい", () => {
+  const r = routeReliability({ totalKm: 50, expresswayKm: 50, urbanKm: 8, surfaceKm: 0 });
+  assert.equal(r.level, "mid");
+});
+
+test("routeReliability: ほぼ高速だけなら高い", () => {
+  const r = routeReliability({ totalKm: 50, expresswayKm: 50, urbanKm: 0, surfaceKm: 0 });
+  assert.equal(r.level, "high");
 });
 
 // ---------- 料金の検索 ----------

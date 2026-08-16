@@ -4,6 +4,9 @@ import {
   VEHICLE_LABEL,
   fuelCost,
   estimateToll,
+  calibrateRatePerKm,
+  summarizeRoads,
+  routeReliability,
   findToll,
   totalCost,
   formatDistanceKm,
@@ -32,6 +35,7 @@ const state = {
   manualKm: null, // 手動上書き（null なら自動を使う）
   highwayM: null, // 入口IC〜出口IC の距離。料金を概算するのに使う
   routeCoords: [], // 経路の形。選んだICが経路上にあるか確かめるのに使う
+  highwayRoads: null, // IC間の道路別の内訳。概算の信頼度の判定に使う
   lastVehicleId: null, // 燃費欄を車両に追従させるための記録
 };
 
@@ -244,12 +248,23 @@ function recalc() {
     } else {
       // 3. 未登録 → IC間の距離から概算する
       const hwKm = state.highwayM === null ? null : formatDistanceKm(state.highwayM);
-      const est = hwKm === null ? null : estimateToll(hwKm, type);
+      const learned = calibrateRatePerKm(db.getTolls());
+      const est = hwKm === null ? null : estimateToll(hwKm, type, learned?.ratePerKm);
       if (est !== null) {
         tollYen = est;
-        tollEl.innerHTML = `<span class="badge">概算</span><span class="money">${formatYen(est)} 円</span>`;
+        const rel = state.highwayRoads
+          ? routeReliability(summarizeRoads(state.highwayRoads))
+          : { level: "mid", reason: "" };
+        const relLabel = { high: "精度：高", mid: "精度：中", low: "精度：低" }[rel.level];
+        const relClass = rel.level === "low" ? "badge warn" : "badge";
+        tollEl.innerHTML =
+          `<span class="${relClass}">概算</span><span class="money">${formatYen(est)} 円</span>`;
         $("tollEntryMsg").textContent =
-          `IC間 ${hwKm.toFixed(1)}km からの概算です（割引を含めないため実額より高めに出ます）`;
+          `IC間 ${hwKm.toFixed(1)}km からの概算（${relLabel}）。` +
+          (learned
+            ? `登録済み${learned.samples}件から学習した ${learned.ratePerKm}円/km を使用。`
+            : `標準単価 24.6円/km を使用。1件でも実額を登録すると精度が上がります。`) +
+          (rel.reason ? `${rel.reason}。` : "");
       } else {
         tollEl.innerHTML = '<span class="miss">未登録</span>';
         $("tollEntryMsg").textContent =
@@ -301,20 +316,26 @@ async function updateHighwayDistance() {
 
   const key = `${a.id}>${b.id}`;
   if (icDistanceCache.has(key)) {
-    state.highwayM = icDistanceCache.get(key);
+    const hit = icDistanceCache.get(key);
+    state.highwayM = hit.m;
+    state.highwayRoads = hit.roads;
     saveTrip();
     recalc();
     return;
   }
   let m = null;
+  let roads = null;
   try {
-    m = await routeDistance([a, b], db.getSettings());
-    icDistanceCache.set(key, m);
+    const r = await route([a, b], { ...db.getSettings(), withSteps: true });
+    m = r.meters;
+    roads = r.roads;
+    icDistanceCache.set(key, { m, roads });
   } catch {
     m = null; // 概算が出ないだけで、登録済みの料金には影響しない
   }
   if (seq !== highwaySeq) return; // 選択が変わった後の古い応答は捨てる
   state.highwayM = m;
+  state.highwayRoads = roads;
   saveTrip();
   recalc();
 }
@@ -615,7 +636,8 @@ $("btnSaveToll").addEventListener("click", () => {
   const outIcId = $("outIc").value;
   if (!inIcId || !outIcId) return toast("入口ICと出口ICを選んでください", true);
   if (yen === null) return toast("金額を入力してください", true);
-  db.saveToll(inIcId, outIcId, currentType(), Math.round(yen), db.todayStr());
+  const km = state.highwayM === null ? null : formatDistanceKm(state.highwayM);
+  db.saveToll(inIcId, outIcId, currentType(), Math.round(yen), db.todayStr(), km);
   $("tollInput").value = "";
   toast("料金を登録しました");
   renderAll();

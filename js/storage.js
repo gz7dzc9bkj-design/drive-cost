@@ -83,12 +83,17 @@ export const DEFAULT_TRIP = {
 export const getTrip = () => ({ ...DEFAULT_TRIP, ...read(K.trip, {}) });
 export const setTrip = (t) => write(K.trip, { ...getTrip(), ...t });
 
-/** 料金を保存（同じ 入口IC・出口IC・車種 があれば上書き）。 */
-export function saveToll(inIcId, outIcId, type, yen, updatedAt) {
+/**
+ * 料金を保存（同じ 入口IC・出口IC・車種 があれば上書き）。
+ * km（そのときのIC間距離）も残す。未登録区間の単価を学習するのに使う。
+ */
+export function saveToll(inIcId, outIcId, type, yen, updatedAt, km = null) {
   const tolls = getTolls().filter(
     (t) => !(t.inIcId === inIcId && t.outIcId === outIcId && t.type === type)
   );
-  tolls.push({ inIcId, outIcId, type, yen, updatedAt });
+  const rec = { inIcId, outIcId, type, yen, updatedAt };
+  if (Number.isFinite(km) && km > 0) rec.km = Math.round(km * 10) / 10;
+  tolls.push(rec);
   setTolls(tolls);
   return tolls;
 }

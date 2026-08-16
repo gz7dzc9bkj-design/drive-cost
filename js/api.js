@@ -269,10 +269,17 @@ export async function route(points, settings = {}) {
     return { meters: await routeDistanceOrs(pts, settings.orsKey), coords: [] };
   }
   const path = pts.map((p) => `${p.lon},${p.lat}`).join(";");
-  const data = await getJson(`${OSRM}${path}?overview=simplified&geometries=geojson`);
+  const steps = settings.withSteps ? "&steps=true" : "";
+  const data = await getJson(`${OSRM}${path}?overview=simplified&geometries=geojson${steps}`);
   const r = data?.routes?.[0];
   if (!Number.isFinite(r?.distance)) throw new Error("経路が見つかりませんでした");
-  return { meters: r.distance, coords: r.geometry?.coordinates ?? [] };
+
+  // 道路名ごとの距離。高速と一般道の内訳を出して概算の信頼度を判定するのに使う。
+  const roads = [];
+  for (const leg of r.legs ?? []) {
+    for (const s of leg.steps ?? []) roads.push({ name: s.name ?? "", meters: s.distance ?? 0 });
+  }
+  return { meters: r.distance, coords: r.geometry?.coordinates ?? [], roads };
 }
 
 /** 距離だけが欲しいとき。 */
