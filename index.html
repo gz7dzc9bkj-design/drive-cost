@@ -50,8 +50,15 @@
   <div class="sec">経由するインターチェンジ</div>
   <div class="card">
     <div class="r"><span class="lb">入口IC</span><select id="inIc" class="val sel"></select></div>
-    <div class="r"><span class="lb">出口IC</span><select id="outIc" class="val sel"></select></div>
+    <div class="r"><input id="inIcQ" class="txt" placeholder="入口ICを名前で検索（例：八王子西IC）" enterkeyhint="search"><button type="button" class="btn" id="btnInIcSearch">検索</button></div>
+    <div id="inIcResults" class="results" hidden></div>
   </div>
+  <div class="card">
+    <div class="r"><span class="lb">出口IC</span><select id="outIc" class="val sel"></select></div>
+    <div class="r"><input id="outIcQ" class="txt" placeholder="出口ICを名前で検索（例：仙台宮城IC）" enterkeyhint="search"><button type="button" class="btn" id="btnOutIcSearch">検索</button></div>
+    <div id="outIcResults" class="results" hidden></div>
+  </div>
+  <p class="hint">検索して選んだICは自動で登録され、次回からは上のプルダウンに出ます。</p>
 
   <div class="card">
     <div class="r"><span class="lb">燃費</span><span class="val"><input id="kmPerL" class="num" type="number" step="0.1" min="0.1" inputmode="decimal"> km/L</span></div>

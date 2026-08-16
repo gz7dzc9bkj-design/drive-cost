@@ -439,13 +439,55 @@ for (const [input, btn] of [["startQ", "btnStartSearch"], ["destQ", "btnDestSear
   });
 }
 
-for (const id of ["inIc", "outIc"]) {
-  $(id).addEventListener("change", () => {
-    $("tollInput").value = ""; // 別の区間になったので候補を入れ直す
-    saveTrip();
-    if (state.manualKm === null) autoDistance();
-    updateHighwayDistance();
-    recalc();
+function onIcChanged() {
+  $("tollInput").value = ""; // 別の区間になったので候補を入れ直す
+  saveTrip();
+  if (state.manualKm === null) autoDistance();
+  updateHighwayDistance();
+  recalc();
+}
+
+for (const id of ["inIc", "outIc"]) $(id).addEventListener("change", onIcChanged);
+
+/**
+ * 計算画面でIC名を検索して選んだときの処理。
+ * 未登録なら自動で登録し、そのまま入口/出口に設定する。
+ */
+function pickIc(selectId, result) {
+  // 「八王子西IC（首都圏中央連絡自動車道八王子市）」→「八王子西IC」
+  const name = result.name.replace(/（[^）]*）\s*$/u, "").trim() || result.name;
+  const ics = db.getIcs();
+  let ic = ics.find((x) => x.name === name);
+
+  if (!ic) {
+    ic = { id: db.newId("i"), name, lat: result.lat, lon: result.lon };
+    db.setIcs([...ics, ic]);
+    toast(`${name} を登録しました`);
+  } else if (!Number.isFinite(ic.lat) || !Number.isFinite(ic.lon)) {
+    // 座標なしで登録済みのICなら、ここで座標を補う
+    db.setIcs(ics.map((x) => (x.id === ic.id ? { ...x, lat: result.lat, lon: result.lon } : x)));
+  }
+
+  renderAll(); // プルダウンを作り直してから選択する
+  $(selectId).value = ic.id;
+  onIcChanged();
+}
+
+for (const [inputId, btnId, selectId, boxId] of [
+  ["inIcQ", "btnInIcSearch", "inIc", "inIcResults"],
+  ["outIcQ", "btnOutIcSearch", "outIc", "outIcResults"],
+]) {
+  $(btnId).addEventListener("click", () =>
+    runSearch($(inputId).value, $(boxId), (r) => {
+      $(inputId).value = "";
+      pickIc(selectId, r);
+    })
+  );
+  $(inputId).addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      $(btnId).click();
+    }
   });
 }
 for (const id of ["kmPerL", "roundTrip"]) $(id).addEventListener("input", recalc);
