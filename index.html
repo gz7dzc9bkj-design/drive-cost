@@ -88,8 +88,9 @@
   <div class="card" id="tollEntry" hidden>
     <div class="r"><span class="item" id="tollEntryMsg">この区間の料金が未登録です</span></div>
     <div class="r"><span class="lb2">保存先</span><span class="val" id="tollEntryTarget">-</span></div>
-    <div class="r"><span class="lb2">正確な金額</span><span class="val"><input id="tollInput" class="num" type="number" step="10" min="0" inputmode="numeric"> 円</span><button type="button" class="btn strong" id="btnSaveToll">保存</button></div>
-    <div class="r"><a class="btn" href="https://www.driveplaza.com/dp/SearchTop" target="_blank" rel="noopener">ドラぷらで調べる ↗</a></div>
+    <div class="r"><span class="lb2">ETC通常料金</span><span class="val"><input id="tollInput" class="num" type="number" step="10" min="0" inputmode="numeric"> 円</span><button type="button" class="btn strong" id="btnSaveToll">保存</button></div>
+    <div class="r"><a class="btn" href="https://www.navitime.co.jp/highway/" target="_blank" rel="noopener">高速料金を調べる（NAVITIME）↗</a></div>
+    <div class="r"><span class="item"><small>検索結果の <b>ETC料金</b> を入力してください（現金料金ではありません）。<br>深夜割引・休日割引の金額は使わず、<b>割引なしの通常料金</b>を入れてください。</small></span></div>
   </div>
 
   <p class="hint">高速料金は ETC・通常料金（割引なし）です。<br>距離は経路計算値のため、純正マップと数km差が出ることがあります。</p>
@@ -125,9 +126,10 @@
     <div class="r"><span class="lb">入口IC</span><select id="tollIn" class="val sel"></select></div>
     <div class="r"><span class="lb">出口IC</span><select id="tollOut" class="val sel"></select></div>
     <div class="r"><span class="lb">車種</span><select id="tollType" class="val sel"><option value="normal">普通車</option><option value="kei">軽自動車</option></select></div>
-    <div class="r"><span class="lb">金額</span><span class="val"><input id="tollYen" class="num" type="number" step="10" min="0" inputmode="numeric"> 円</span></div>
-    <div class="r"><a class="btn" href="https://www.driveplaza.com/dp/SearchTop" target="_blank" rel="noopener">ドラぷらで調べる ↗</a><button type="button" class="btn strong" id="btnAddToll">料金を登録</button></div>
+    <div class="r"><span class="lb">ETC通常料金</span><span class="val"><input id="tollYen" class="num" type="number" step="10" min="0" inputmode="numeric"> 円</span></div>
+    <div class="r"><a class="btn" href="https://www.navitime.co.jp/highway/" target="_blank" rel="noopener">高速料金を調べる（NAVITIME）↗</a><button type="button" class="btn strong" id="btnAddToll">料金を登録</button></div>
   </div>
+  <p class="hint">検索結果の <b>ETC料金</b> を入力してください（現金料金ではありません）。<br>深夜割引・休日割引は使わず、<b>割引なしの通常料金</b>を登録します。</p>
 </section>
 
 <!-- ===================== 設定 ===================== -->

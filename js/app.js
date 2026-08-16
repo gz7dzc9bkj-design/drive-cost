@@ -232,7 +232,7 @@ function recalc() {
       tollEl.innerHTML =
         `${stale ? '<span class="badge warn">要更新</span>' : ""}` +
         `<span class="money">${formatYen(t.yen)} 円</span>`;
-      $("tollEntryMsg").textContent = "金額を登録し直す場合はこちら";
+      $("tollEntryMsg").textContent = "登録済みのETC通常料金です。変更する場合はこちら";
       entry.hidden = !stale;
     } else if (t) {
       // 2. 他の車種の登録額から換算

@@ -10,7 +10,8 @@ const GSI_REVERSE = "https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatT
 const OSRM = "https://router.project-osrm.org/route/v1/driving/";
 const ORS = "https://api.openrouteservice.org/v2/directions/driving-car";
 
-export const DRIVEPLAZA_URL = "https://www.driveplaza.com/dp/SearchTop";
+/** 料金を調べる先。ETC料金と現金料金が区別して表示されるものを使う。 */
+export const TOLL_LOOKUP_URL = "https://www.navitime.co.jp/highway/";
 
 async function getJson(url, options = {}) {
   const { timeoutMs = TIMEOUT_MS, ...init } = options;
