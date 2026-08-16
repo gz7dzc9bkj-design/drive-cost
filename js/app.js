@@ -8,6 +8,7 @@ import {
   totalCost,
   formatDistanceKm,
   formatYen,
+  distanceToRouteKm,
   isTollStale,
   validateNumber,
   validateVehicle,
@@ -16,6 +17,7 @@ import * as db from "./storage.js";
 import {
   searchPlace,
   searchInterchange,
+  route,
   routeDistance,
   currentPosition,
   reverseLabel,
@@ -29,6 +31,7 @@ const state = {
   distanceM: null, // 経路APIから得た自動距離
   manualKm: null, // 手動上書き（null なら自動を使う）
   highwayM: null, // 入口IC〜出口IC の距離。料金を概算するのに使う
+  routeCoords: [], // 経路の形。選んだICが経路上にあるか確かめるのに使う
   lastVehicleId: null, // 燃費欄を車両に追従させるための記録
 };
 
@@ -267,6 +270,8 @@ function recalc() {
   $("totalLb").textContent = rt ? "合計（往復）" : "合計";
   const total = fuel === null && tollYen === null ? null : totalCost(fuel ?? 0, tollYen ?? 0, rt);
   $("totalLabel").textContent = total === null ? "-" : `${formatYen(total)} 円`;
+
+  checkIcOnRoute();
 }
 
 // IC間の距離は毎回同じなので、一度引いたら覚えておく
@@ -325,19 +330,52 @@ async function autoDistance() {
   const points = [state.start, state.dest];
 
   $("distLabel").textContent = "計算中…";
-  let m = null;
+  let result = null;
   let error = null;
   try {
-    m = await routeDistance(points, db.getSettings());
+    result = await route(points, db.getSettings());
   } catch (e) {
     error = e;
   }
   if (seq !== distanceSeq) return; // 条件が変わった後の古い応答は捨てる
   // 通信に失敗しても、前回の距離が残っているならそれを保つ（圏外で消えないように）
-  if (m !== null) state.distanceM = m;
+  if (result) {
+    state.distanceM = result.meters;
+    state.routeCoords = result.coords;
+  }
   if (error) toast(`距離を計算できませんでした：${error.message}`, true);
   saveTrip();
   recalc();
+}
+
+/** 選んだICが計算した経路の上にあるか確かめる。離れていれば実際の距離はもっと長い。 */
+const OFF_ROUTE_KM = 3;
+
+function checkIcOnRoute() {
+  const row = $("routeWarn");
+  const coords = state.routeCoords;
+  const ics = db.getIcs();
+  const chosen = [$("inIc").value, $("outIc").value]
+    .map((id) => ics.find((x) => x.id === id))
+    .filter((i) => i && Number.isFinite(i.lat) && Number.isFinite(i.lon));
+
+  if (!coords?.length || !chosen.length) {
+    row.hidden = true;
+    return;
+  }
+  const off = chosen
+    .map((ic) => ({ ic, km: distanceToRouteKm(ic, coords) }))
+    .filter((x) => x.km !== null && x.km > OFF_ROUTE_KM);
+
+  if (!off.length) {
+    row.hidden = true;
+    return;
+  }
+  const names = off.map((x) => `${x.ic.name}（約${x.km.toFixed(0)}km外れ）`).join("・");
+  $("routeWarnBody").textContent =
+    `${names} は、計算した経路から外れています。実際にこのICを通るなら走行距離は表示より長くなります。` +
+    `［直す］で実際の距離を入れるか、経路に合ったICを選んでください。`;
+  row.hidden = false;
 }
 
 // ---------------- 地点の検索 ----------------

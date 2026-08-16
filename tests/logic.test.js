@@ -9,6 +9,8 @@ import {
   findToll,
   totalCost,
   formatDistanceKm,
+  haversineKm,
+  distanceToRouteKm,
   isTollStale,
   formatYen,
   validateNumber,
@@ -180,6 +182,45 @@ test("formatDistanceKm: 0m は 0", () => {
 test("formatDistanceKm: 不正値は null", () => {
   assert.equal(formatDistanceKm(-5), null);
   assert.equal(formatDistanceKm("x"), null);
+});
+
+// ---------- 経路との距離 ----------
+test("haversineKm: 東京駅と横浜駅は約27km", () => {
+  const d = haversineKm(35.6812, 139.7671, 35.4657, 139.6222);
+  assert.ok(d > 25 && d < 29, `実際: ${d}`);
+});
+
+test("haversineKm: 同じ地点は0km", () => {
+  assert.equal(haversineKm(35.68, 139.76, 35.68, 139.76), 0);
+});
+
+test("haversineKm: 不正な座標は null", () => {
+  assert.equal(haversineKm(999, 139.76, 35.68, 139.76), null);
+  assert.equal(haversineKm(null, 139.76, 35.68, 139.76), null);
+});
+
+test("distanceToRouteKm: 経路上の点は0に近い", () => {
+  const line = [
+    [139.7671, 35.6812],
+    [139.7, 35.6],
+    [139.6222, 35.4657],
+  ];
+  const d = distanceToRouteKm({ lat: 35.6, lon: 139.7 }, line);
+  assert.ok(d < 0.01, `実際: ${d}`);
+});
+
+test("distanceToRouteKm: 経路から離れた点は距離が出る", () => {
+  const line = [
+    [139.7671, 35.6812],
+    [139.7, 35.6],
+  ];
+  const d = distanceToRouteKm({ lat: 35.6812, lon: 139.2513 }, line);
+  assert.ok(d > 40, `実際: ${d}`);
+});
+
+test("distanceToRouteKm: 経路が無ければ null", () => {
+  assert.equal(distanceToRouteKm({ lat: 35, lon: 139 }, []), null);
+  assert.equal(distanceToRouteKm(null, [[139, 35]]), null);
 });
 
 // ---------- 料金の鮮度 ----------

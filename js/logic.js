@@ -144,6 +144,43 @@ export function formatDistanceKm(meters) {
   return Math.round(m / 100) / 10;
 }
 
+/**
+ * 2点間の直線距離（km）。地球を半径6371kmの球として計算する。
+ * @returns {number|null}
+ */
+export function haversineKm(aLat, aLon, bLat, bLon) {
+  const la1 = validateNumber(aLat, { min: -90, max: 90 });
+  const lo1 = validateNumber(aLon, { min: -180, max: 180 });
+  const la2 = validateNumber(bLat, { min: -90, max: 90 });
+  const lo2 = validateNumber(bLon, { min: -180, max: 180 });
+  if (la1 === null || lo1 === null || la2 === null || lo2 === null) return null;
+  const R = 6371;
+  const rad = Math.PI / 180;
+  const dLa = (la2 - la1) * rad;
+  const dLo = (lo2 - lo1) * rad;
+  const h =
+    Math.sin(dLa / 2) ** 2 + Math.cos(la1 * rad) * Math.cos(la2 * rad) * Math.sin(dLo / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/**
+ * 経路（[lon,lat] の配列）から、ある地点までの最短距離（km）。
+ * 選んだICが本当にその経路上にあるかを確かめるのに使う。
+ * @param {{lat:number, lon:number}} point
+ * @param {Array<[number, number]>} lineCoords OSRM の GeoJSON 座標（[lon,lat]）
+ * @returns {number|null}
+ */
+export function distanceToRouteKm(point, lineCoords) {
+  if (!point || !Array.isArray(lineCoords) || !lineCoords.length) return null;
+  let min = Infinity;
+  for (const c of lineCoords) {
+    if (!Array.isArray(c) || c.length < 2) continue;
+    const d = haversineKm(point.lat, point.lon, c[1], c[0]);
+    if (d !== null && d < min) min = d;
+  }
+  return Number.isFinite(min) ? min : null;
+}
+
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /**

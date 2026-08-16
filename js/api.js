@@ -251,24 +251,32 @@ export async function reverseLabel(lat, lon) {
 }
 
 /**
- * 経路の走行距離（メートル）。points は [{lat,lon}, ...] で2点以上。
- * 経由IC の座標があれば出発地と目的地の間に挟んで渡す。
- * @returns {Promise<number>}
+ * 経路の走行距離と経路の形。points は [{lat,lon}, ...] で2点以上。
+ *
+ * coords は選んだICが本当にこの経路上にあるかを確かめるために使う
+ * （ICの座標は高速道路上の点なので、一般道から経由地として渡すと
+ * 経路が大きく狂う。だからICは経由地に入れず、後から照合する）。
+ * @returns {Promise<{meters:number, coords:Array<[number,number]>}>}
  */
-export async function routeDistance(points, settings = {}) {
+export async function route(points, settings = {}) {
   const pts = (points ?? []).filter(
     (p) => p && Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lon))
   );
   if (pts.length < 2) throw new Error("出発地と目的地の両方が必要です");
 
   if (settings.router === "ors" && settings.orsKey) {
-    return routeDistanceOrs(pts, settings.orsKey);
+    return { meters: await routeDistanceOrs(pts, settings.orsKey), coords: [] };
   }
-  const coords = pts.map((p) => `${p.lon},${p.lat}`).join(";");
-  const data = await getJson(`${OSRM}${coords}?overview=false`);
-  const m = data?.routes?.[0]?.distance;
-  if (!Number.isFinite(m)) throw new Error("経路が見つかりませんでした");
-  return m;
+  const path = pts.map((p) => `${p.lon},${p.lat}`).join(";");
+  const data = await getJson(`${OSRM}${path}?overview=simplified&geometries=geojson`);
+  const r = data?.routes?.[0];
+  if (!Number.isFinite(r?.distance)) throw new Error("経路が見つかりませんでした");
+  return { meters: r.distance, coords: r.geometry?.coordinates ?? [] };
+}
+
+/** 距離だけが欲しいとき。 */
+export async function routeDistance(points, settings = {}) {
+  return (await route(points, settings)).meters;
 }
 
 async function routeDistanceOrs(pts, key) {
