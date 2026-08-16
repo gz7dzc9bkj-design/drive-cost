@@ -7,6 +7,7 @@ const K = {
   places: "dc.places",
   ics: "dc.ics",
   tolls: "dc.tolls",
+  trip: "dc.trip",
 };
 
 export const DEFAULT_SETTINGS = {
@@ -63,6 +64,24 @@ export const setIcs = (v) => write(K.ics, v);
 
 export const getTolls = () => read(K.tolls, []);
 export const setTolls = (v) => write(K.tolls, v);
+
+/**
+ * 入力中の内容（出発地・目的地・IC・往復・距離）。
+ * これを保存しないと、アプリを開き直すたびに距離とガソリン代が消える。
+ */
+export const DEFAULT_TRIP = {
+  start: null,
+  dest: null,
+  inIcId: "",
+  outIcId: "",
+  manualKm: null,
+  roundTrip: false,
+  distanceM: null,
+  highwayM: null,
+};
+
+export const getTrip = () => ({ ...DEFAULT_TRIP, ...read(K.trip, {}) });
+export const setTrip = (t) => write(K.trip, { ...getTrip(), ...t });
 
 /** 料金を保存（同じ 入口IC・出口IC・車種 があれば上書き）。 */
 export function saveToll(inIcId, outIcId, type, yen, updatedAt) {

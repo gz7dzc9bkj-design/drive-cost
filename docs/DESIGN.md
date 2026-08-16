@@ -60,6 +60,10 @@ drive-cost/
 
 // dc.tolls    — 高速料金（IC2つ + 車種 の3点セットが主キー）
 [{ inIcId: "i1", outIcId: "i2", type: "normal", yen: 8140, updatedAt: "2026-08-14" }]
+
+// dc.trip     — 入力中の内容。これが無いと開き直すたび距離とガソリン代が消える
+{ start: {name,lat,lon}, dest: {…}, inIcId: "i1", outIcId: "i2",
+  manualKm: null, roundTrip: false, distanceM: 395700, highwayM: 372300 }
 ```
 
 **重要**: 車種は `"normal"` / `"kei"` の文字列で固定。保存済みデータが壊れるため後から値を変えない。

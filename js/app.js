@@ -87,11 +87,13 @@ function syncFuelField() {
 
 function renderSelects() {
   const s = db.getSettings();
+  const trip = db.getTrip();
   fillSelect($("vehicleSel"), vehicleItems(), { placeholder: "車両を選択…", value: s.activeVehicleId });
   fillSelect($("startPlace"), placeItems(), { placeholder: "登録地点から選ぶ…", value: "" });
   fillSelect($("destPlace"), placeItems(), { placeholder: "登録地点から選ぶ…", value: "" });
-  fillSelect($("inIc"), icItems(), { placeholder: "選択なし", value: $("inIc").value });
-  fillSelect($("outIc"), icItems(), { placeholder: "選択なし", value: $("outIc").value });
+  // 起動直後は保存済みの選択を復元し、以後は画面の選択を保つ
+  fillSelect($("inIc"), icItems(), { placeholder: "選択なし", value: $("inIc").value || trip.inIcId });
+  fillSelect($("outIc"), icItems(), { placeholder: "選択なし", value: $("outIc").value || trip.outIcId });
   fillSelect($("tollIn"), icItems(), { placeholder: "入口ICを選択…", value: $("tollIn").value });
   fillSelect($("tollOut"), icItems(), { placeholder: "出口ICを選択…", value: $("tollOut").value });
 }
@@ -281,6 +283,7 @@ async function updateHighwayDistance() {
   // 入口と出口が同じ／座標が無い区間は概算しない
   if (!ok(a) || !ok(b) || inId === outId) {
     state.highwayM = null;
+    saveTrip();
     recalc();
     return;
   }
@@ -288,6 +291,7 @@ async function updateHighwayDistance() {
   const key = `${a.id}>${b.id}`;
   if (icDistanceCache.has(key)) {
     state.highwayM = icDistanceCache.get(key);
+    saveTrip();
     recalc();
     return;
   }
@@ -300,6 +304,7 @@ async function updateHighwayDistance() {
   }
   if (seq !== highwaySeq) return; // 選択が変わった後の古い応答は捨てる
   state.highwayM = m;
+  saveTrip();
   recalc();
 }
 
@@ -324,8 +329,10 @@ async function autoDistance() {
     error = e;
   }
   if (seq !== distanceSeq) return; // 条件が変わった後の古い応答は捨てる
-  state.distanceM = m;
+  // 通信に失敗しても、前回の距離が残っているならそれを保つ（圏外で消えないように）
+  if (m !== null) state.distanceM = m;
   if (error) toast(`距離を計算できませんでした：${error.message}`, true);
+  saveTrip();
   recalc();
 }
 
@@ -357,11 +364,26 @@ async function runSearch(query, container, onPick) {
   }
 }
 
+/** 入力中の内容を保存する。これが無いとアプリを開き直したとき全部消える。 */
+function saveTrip() {
+  db.setTrip({
+    start: state.start,
+    dest: state.dest,
+    inIcId: $("inIc").value,
+    outIcId: $("outIc").value,
+    manualKm: state.manualKm,
+    roundTrip: $("roundTrip").checked,
+    distanceM: state.distanceM,
+    highwayM: state.highwayM,
+  });
+}
+
 function setStart(p) {
   state.start = p;
   $("startLabel").textContent = p ? p.name : "未設定";
   state.manualKm = null;
   $("distEditRow").hidden = true;
+  saveTrip();
   autoDistance();
 }
 function setDest(p) {
@@ -369,6 +391,7 @@ function setDest(p) {
   $("destLabel").textContent = p ? p.name : "未設定";
   state.manualKm = null;
   $("distEditRow").hidden = true;
+  saveTrip();
   autoDistance();
 }
 
@@ -419,13 +442,17 @@ for (const [input, btn] of [["startQ", "btnStartSearch"], ["destQ", "btnDestSear
 for (const id of ["inIc", "outIc"]) {
   $(id).addEventListener("change", () => {
     $("tollInput").value = ""; // 別の区間になったので候補を入れ直す
+    saveTrip();
     if (state.manualKm === null) autoDistance();
     updateHighwayDistance();
     recalc();
   });
 }
 for (const id of ["kmPerL", "roundTrip"]) $(id).addEventListener("input", recalc);
-$("roundTrip").addEventListener("change", recalc);
+$("roundTrip").addEventListener("change", () => {
+  saveTrip();
+  recalc();
+});
 $("yenPerL").addEventListener("input", () => {
   const v = validateNumber($("yenPerL").value, { min: 0 });
   if (v !== null) db.setSettings({ yenPerL: v });
@@ -440,12 +467,14 @@ $("btnEditDist").addEventListener("click", () => {
 });
 $("distManual").addEventListener("input", () => {
   state.manualKm = validateNumber($("distManual").value, { min: 0 });
+  saveTrip();
   recalc();
 });
 $("btnAutoDist").addEventListener("click", () => {
   state.manualKm = null;
   $("distEditRow").hidden = true;
   $("distManual").value = "";
+  saveTrip();
   recalc();
   autoDistance();
 });
@@ -583,7 +612,27 @@ function boot() {
   $("routerSel").value = s.router;
   $("orsKey").value = s.orsKey;
   $("orsRow").hidden = s.router !== "ors";
-  renderAll();
+
+  // 前回の続きを復元する（出発地・目的地・IC・距離・往復）
+  const trip = db.getTrip();
+  state.start = trip.start;
+  state.dest = trip.dest;
+  state.manualKm = trip.manualKm;
+  state.distanceM = trip.distanceM;
+  state.highwayM = trip.highwayM;
+  $("startLabel").textContent = trip.start ? trip.start.name : "未設定";
+  $("destLabel").textContent = trip.dest ? trip.dest.name : "未設定";
+  $("roundTrip").checked = !!trip.roundTrip;
+  if (trip.manualKm !== null) {
+    $("distEditRow").hidden = false;
+    $("distManual").value = trip.manualKm;
+  }
+
+  renderAll(); // renderSelects が trip.inIcId / outIcId を復元する
+
+  // 保存済みの数値をすぐ出したうえで、通信できるなら裏で最新に更新する
+  autoDistance();
+  updateHighwayDistance();
 }
 
 boot();
